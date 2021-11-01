@@ -4,14 +4,28 @@
 
 using namespace std;
 
+class Cell{
+    public:
+        int rowLocation;
+        int colLocation;
+        int neighbourCount;
+        string state; 
+
+        Cell(int r,int c,string s){
+            rowLocation=r;
+            colLocation=c;
+            neighbourCount=0;
+            state=s;
+        }   
+};
+
 int main(){
     int rows=4;
     int cols=4;
     int generations=5;
     string line;
-    vector<string>vecLine;
-    vector<vector<string>>currBoardState;
-    vector<vector<string>>nextBoardState(rows,vector<string>(cols,"0"));
+    vector<vector<Cell>>currBoardState(rows);
+    vector<vector<Cell>>nextBoardState;
     vector<string>vecLines;
 
     //Take in input for the current board state
@@ -24,23 +38,32 @@ int main(){
     }
 
     for(int r=0;r<rows;r++){
-        for(auto c:vecLines[r]){
-            vecLine.push_back(string(1,c));
+        for(int c=0;c<cols;c++){
+            currBoardState[r].push_back(Cell(r,c,string(1,vecLines[r][c])));
         }
-        currBoardState.push_back(vecLine);
-        vecLine.clear();
     }
 
     //print the board
     for(int r=0;r<rows;r++){
         for(int c=0;c<cols;c++){
-            cout<<currBoardState[r][c]<<" ";
+            cout<<currBoardState[r][c].state<<" ";
         }
         cout<<endl;
     }
 
+    //Neighbour count
+
     //Generate the next board state
-     
+        //Neighbour checker
+        //Top-left
+        //Top middle
+        //Top right
+        //Middle left
+        //Middle right
+        //Bottom left
+        //Bottom middle
+        //Bottom right
+
     //Display the next board state
     //Continue this loop for a few generations
 
