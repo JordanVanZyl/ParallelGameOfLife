@@ -6,22 +6,22 @@
 
 using namespace std;
 
-class Cell{
-    public:
-        int rowLocation;
-        int colLocation;
-        int neighbourCount;
-        int state; 
-        bool stateChange;
+// class Cell{
+//     public:
+//         int rowLocation;
+//         int colLocation;
+//         int neighbourCount;
+//         int state; 
+//         bool stateChange;
 
-        Cell(int r,int c,int s){
-            rowLocation=r;
-            colLocation=c;
-            neighbourCount=0;
-            state=s;
-            stateChange=false;
-        }   
-};
+//         Cell(int r,int c,int s){
+//             rowLocation=r;
+//             colLocation=c;
+//             neighbourCount=0;
+//             state=s;
+//             stateChange=false;
+//         }   
+// };
 
 int main(){
     int rows=4;
@@ -31,10 +31,10 @@ int main(){
     int currNeighbourCount;
     string line;
     stringstream str;
-    stack<Cell*>AliveCells;
-    stack<Cell*>neighbours;
-    vector<vector<Cell>>currBoardState(rows);
-    vector<vector<Cell>>nextBoardState;
+    // stack<Cell*>cellsToCheck;
+    // stack<Cell*>neighbours;
+    vector<vector<int>>currBoardState(rows,vector<int>(cols));
+    vector<vector<int>>nextBoardState(rows,vector<int>(cols,0));
     vector<string>vecLines;
 
     //Take in input for the current board state
@@ -50,85 +50,83 @@ int main(){
         for(int c=0;c<cols;c++){
             str<<vecLines[r][c];
             str>>state;
-            currBoardState[r].push_back(Cell(r,c,state));
+            currBoardState[r][c]=state;
             str.clear();
-
+            
         }
     }
 
     //print the board
     for(int r=0;r<rows;r++){
         for(int c=0;c<cols;c++){
-            cout<<currBoardState[r][c].state<<" ";
+            cout<<currBoardState[r][c]<<" ";
         }
         cout<<endl;
     }
-    //TODO: Loop for going throught the alive cells
-    //Go through the entire board
-    for(int row=0;row<rows;row++){
-        for(int col=0;col<cols;col++){
-            Cell *currCell=&currBoardState[row][col];
-        //Neighbour checker
-        //TODO: checks for edge of board neighbours
-        //TODO: Actually update the next board state
-            //Top-left
-            currCell->neighbourCount+=currBoardState[row-1][col-1].state;
-            neighbours.push(&currBoardState[row-1][col-1]);
-            //Top middle
-            currCell->neighbourCount+=currBoardState[row-1][col].state;
-            neighbours.push(&currBoardState[row-1][col]);
-            //Top right
-            currCell->neighbourCount+=currBoardState[row-1][col+1].state;
-            neighbours.push(&currBoardState[row-1][col+1]);
-            //Middle left
-            currCell->neighbourCount+=currBoardState[row][col-1].state;
-            neighbours.push(&currBoardState[row][col-1]);
-            //Middle right
-            currCell->neighbourCount+=currBoardState[row-1][col+1].state;
-            neighbours.push(&currBoardState[row-1][col+1]);
-            //Bottom left
-            currCell->neighbourCount+=currBoardState[row+1][col-1].state;
-            neighbours.push(&currBoardState[row+1][col-1]);
-            //Bottom middle
-            currCell->neighbourCount+=currBoardState[row+1][col].state;
-            neighbours.push(&currBoardState[row+1][col]);
-            //Bottom right
-            currCell->neighbourCount+=currBoardState[row+1][col+1].state;
-            neighbours.push(&currBoardState[row+1][col+1]);
 
-            currNeighbourCount=currCell->neighbourCount;
-            //Do the rule check
-            if(currCell->state==1){
-                if(currNeighbourCount<2||currNeighbourCount>3){
-                    currCell->state=0;
-                    currCell->stateChange=true;
+    cout<<endl;
+
+        for(int row=0;row<rows;row++){
+            for(int col=0;col<cols;col++){
+                //Inistialize neighbour count
+                currNeighbourCount=0;
+                //TODO: check for edge of board for some cases
+                //Top left
+                if(row>=1&&col>=1){
+                    currNeighbourCount+=currBoardState[row-1][col-1];
                 }
-            }else if(currNeighbourCount==3){
-                currCell->state=1;
-                currCell->stateChange=true;
-            }
+                //Top middle
+                if(row>=1){
+                    currNeighbourCount+=currBoardState[row-1][col];
+                }
+                //Top right
+                if(row>=1&&col<=cols-2){
+                    currNeighbourCount+=currBoardState[row-1][col+1];
+                }
+                //Middle left
+                if(col>=1){
+                    currNeighbourCount+=currBoardState[row][col-1];
+                }
+                //Middle right
+                if(col<=cols-2){
+                    currNeighbourCount+=currBoardState[row][col+1];
+                }
+                //Bottom left
+                if(row<=rows-2&&col>=1){
+                    currNeighbourCount+=currBoardState[row+1][col-1];
+                }
+                //Bottom middle
+                if(row<=rows-2){
+                    currNeighbourCount+=currBoardState[row+1][col];
+                }
+                //Bottom right
+                if(row<=rows-2&&col<=cols-2){
+                    currNeighbourCount+=currBoardState[row+1][col+1];
+                }
 
-            state=currCell->state;
-            //If there is a state change, update the neighbours
-            if(currCell->stateChange){
-                //Go through all the neighbours and update them
-                while(!neighbours.empty()){
-                    if(state==1){
-                        neighbours.top()->neighbourCount+=1;
-                        neighbours.pop();
+                if(currBoardState[row][col]==1){
+                    if(currNeighbourCount<2||currNeighbourCount>3){
+                        nextBoardState[row][col]=0;
                     }else{
-                        neighbours.top()->neighbourCount-=1;
-                        neighbours.pop();
+                        nextBoardState[row][col]=currBoardState[row][col];
                     }
+                }else if(currNeighbourCount==3){
+                    nextBoardState[row][col]=1;
+                }
+                else{
+                    nextBoardState[row][col]=currBoardState[row][col];
                 }
             }
-                //Else move on to the next cell
         }
-    }
-    //Generate the next board state
         
 
     //Display the next board state
+    for(int r=0;r<rows;r++){
+        for(int c=0;c<cols;c++){
+            cout<<nextBoardState[r][c]<<" ";
+        }
+        cout<<endl;
+    }
     //Continue this loop for a few generations
 
 
