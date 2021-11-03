@@ -3,29 +3,13 @@
 #include<string>
 #include<stack> 
 #include<sstream>
+#include <algorithm>
 
 using namespace std;
 
-// class Cell{
-//     public:
-//         int rowLocation;
-//         int colLocation;
-//         int neighbourCount;
-//         int state; 
-//         bool stateChange;
-
-//         Cell(int r,int c,int s){
-//             rowLocation=r;
-//             colLocation=c;
-//             neighbourCount=0;
-//             state=s;
-//             stateChange=false;
-//         }   
-// };
-
 int main(){
-    int rows=4;
-    int cols=4;
+    int rows=6;
+    int cols=6;
     int generations=5;
     int state;
     int currNeighbourCount;
@@ -34,7 +18,7 @@ int main(){
     // stack<Cell*>cellsToCheck;
     // stack<Cell*>neighbours;
     vector<vector<int>>currBoardState(rows,vector<int>(cols));
-    vector<vector<int>>nextBoardState(rows,vector<int>(cols,0));
+    vector<vector<int>>nextBoardState(rows,vector<int>(cols));
     vector<string>vecLines;
 
     //Take in input for the current board state
@@ -57,20 +41,23 @@ int main(){
     }
 
     //print the board
-    for(int r=0;r<rows;r++){
-        for(int c=0;c<cols;c++){
-            cout<<currBoardState[r][c]<<" ";
-        }
-        cout<<endl;
-    }
+    // for(int r=0;r<rows;r++){
+    //     for(int c=0;c<cols;c++){
+    //         cout<<currBoardState[r][c];
+    //     }
+    //     cout<<endl;
+    // }
 
     cout<<endl;
+    for(int gen=0;gen<generations;gen++){
+        for (auto &i : nextBoardState){
+            fill(i.begin(), i.end(), 0);
+        }
 
         for(int row=0;row<rows;row++){
             for(int col=0;col<cols;col++){
                 //Inistialize neighbour count
                 currNeighbourCount=0;
-                //TODO: check for edge of board for some cases
                 //Top left
                 if(row>=1&&col>=1){
                     currNeighbourCount+=currBoardState[row-1][col-1];
@@ -119,17 +106,17 @@ int main(){
             }
         }
         
-
-    //Display the next board state
-    for(int r=0;r<rows;r++){
-        for(int c=0;c<cols;c++){
-            cout<<nextBoardState[r][c]<<" ";
-        }
         cout<<endl;
+        //Display the next board state
+        for(int r=0;r<rows;r++){
+            for(int c=0;c<cols;c++){
+                cout<<nextBoardState[r][c];
+            }
+            cout<<endl;
+        }
+
+        currBoardState=nextBoardState;
     }
     //Continue this loop for a few generations
-
-
-    //Check
     return 0;
 }
