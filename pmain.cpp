@@ -96,8 +96,20 @@ int main(int argc,char* argv[]){
         //Check for rank 0
         if(mpiRank==mpiRoot){
             for(auto r=0;r<numRowsLocal;r++){
-                for(auto c=0;c>numCols;c++){
+                for(auto c=0;c<numCols;c++){
                     //Look for edge columns
+                    //Top left
+                    if(r>=1&&c>=1){
+                        neighbourSum+=currBoardState[r-1][c-1];
+                    }
+                    //Top middle
+                    if(r>=1){
+                        neighbourSum+=currBoardState[r-1][c];
+                    }
+                    //Top right
+                    if(r>=1&&c<=numCols-2){
+                        neighbourSum+=currBoardState[r-1][c+1];
+                    }
                     //Middle left
                     if(c>=1){
                         neighbourSum+=currBoardState[r][c-1];
@@ -140,6 +152,18 @@ int main(int argc,char* argv[]){
                     if(c<=numCols-2){
                         neighbourSum+=currBoardState[r][c+1];
                     }
+                    //Bottom left
+                    if(r<numRowLocal-1&&c>=1){
+                        neighbourSum+=currBoardState[r+1][c-1];
+                    }
+                    //Bottom middle
+                    if(r<numRowLocal-1){
+                        neighbourSum+=currBoardState[r+1][c];               
+                    }
+                    //Bottom right
+                    if(r<numRowLocal-1&&c<=numCols-2){
+                        neighbourSum+=currBoardState[r+1][c+1];
+                    }
                 }
             }
         }else{
@@ -178,10 +202,8 @@ int main(int argc,char* argv[]){
                 }
             }
         }
-        
-
-
         //Update the localNextGrid
+        //Broadcast the results
         
     }
 
