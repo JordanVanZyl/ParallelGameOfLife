@@ -1,10 +1,11 @@
 #include<iostream>
-#include"mpi.h"
+#include<vector>
+#include<mpi.h>
 
 
 using namespace std;
 
-void genRandomBoard(vector<vector<int>>&grid,nRows,nCols){
+void genRandomBoard(vector<vector<int>>&grid,int nRows,int nCols){
     for(auto r=0;r<nRows;r++){
         for(auto c=0;c<nCols;c++){
             grid[r][c]=rand()%2;
@@ -12,18 +13,28 @@ void genRandomBoard(vector<vector<int>>&grid,nRows,nCols){
     }
 }
 int main(int argc,char* argv[]){
-    MPI::Init(argc,argv);
-    auto mpiSize=MPI::COMM_WORLD.Get_size();
-    auto mpiRank=MPI::COMM_WORLD.Get_rank();
+    MPI_Init(&argc,&argv);
+    int mpiSize,mpiRank;
+    MPI_Comm_size(MPI_COMM_WORLD,&mpiSize);
+    MPI_Comm_rank(MPI_COMM_WORLD,&mpiRank);
 
     auto mpiRoot=0;
 
     int numRows,numCols,numGenerations;
+    if(mpiRank==mpiRoot){
+        if(argc!=4){
+            cout<<"4 arguments required"<<endl;
+            exit(1);
+        }
+    }
+    numRows = atoi(argv[1]);
+    numCols = atoi(argv[2]);
+    numGenerations = atoi(argv[3]);
 
     //Broad cast the infomation entered 
-    MPI::COMM_WORLD.Bcast(&numRows,1,MPI::INT,mpiRoot);
-    MPI::COMM_WORLD.Bcast(&numCols,1,MPI::INT,mpiRoot);
-    MPI::COMM_WORLD.Bcast(&numGenerations,1,MPI::INT,mpiRoot);
+    MPI_Bcast(&numRows,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
+    MPI_Bcast(&numCols,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
+    MPI_Bcast(&numGenerations,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
     
     //Calculate the number of rows each node will get
     int numRowsLocal=numRows/mpiSize;
@@ -45,7 +56,7 @@ int main(int argc,char* argv[]){
     vector<vector<int>>localCurrGrid(numRowsWithGhost,vector<int>(numCols,0));
     vector<vector<int>>localNextGrid(numRowsWithGhost,vector<int>(numCols,0));
     
-    genRandomBoard(localCurrGrid,numRowsWithGhost,numCols);
+    genRandomBoard(localCurrGrid,numRowsLocal,numCols);
 
     int aboveNeighbour;
     int belowNeighbour;
@@ -64,150 +75,219 @@ int main(int argc,char* argv[]){
     }
 
     //Generations loop
-    for(auto gen=0;gen<numGenerations){
+    for(auto gen=0;gen<numGenerations;gen++){
         //Check for aboveNeighbour==-1
         if(aboveNeighbour!=-1){
             //Send the row to the above process
-            MPI::COMM_WORLD.Send(&localCurrGrid[1][0],numCols,MPI::INT,aboveNeighbour,0); 
+            MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD); 
         }
         
 
         //Check for the belowNeighbour==-1
         if(belowNeighbour!=-1){
             //Send the row to below process
-            MPI::COMM_WORLD.Send(&localCurrGrid[numRowsLocal][0],numCols,MPI::INT,belowNeighbour,0); 
+            MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
         }
         
         //Check for the belowNeighbour==-1
         if(belowNeighbour!=-1){
             //Receive in reverse order of sending
-            MPI::COMM_WORLD.Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI::INT,belowNeighbour,0);
+            MPI_Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
 
         //Check for aboveNeighbour==-1
         if(aboveNeighbour!=-1){
             //Receive in reverse order of sending
-            MPI::COMM_WORLD.Recv(&localCurrGrid[0][0],numCols,MPI::INT,aboveNeighbour,0);
+            MPI_Recv(&localCurrGrid[0][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
 
-        //Calculate the number of alive neighbours
-        int neighbourSum=0;
+        //Display the grid
+        if(mpiRank!=mpiRoot){
+
+           for(int row=1;row<numRowsLocal;row++){
+                MPI_Send(&localCurrGrid[row][0],numCols,MPI_INT,mpiRoot,0,MPI_COMM_WORLD);
+            }
+        }else{
+            //Print local grid
+            cout<<"Generation: "<<gen<<endl;
+            for(int row=0;row<numRowsLocal;row++){
+                for(int col=0;col<numCols;col++){
+                    cout<<localCurrGrid[row][col]<<" ";
+                }
+                cout<<endl;
+            }
+            //Print received grids
+            for(int otherRanks=1;otherRanks<mpiSize;otherRanks++){
+                auto numReceived=numRows/mpiSize;//Check this
+
+                if(otherRanks==mpiSize-1){
+                    numReceived+=numRows%mpiSize;
+                }
+
+                //Vector to save the input
+                vector<int>vecTemp(numCols,0);
+                //Perform a loop for the receives
+                for(int i=0;i<numReceived;i++){
+                    MPI_Recv(&vecTemp[0],numCols,MPI_INT,otherRanks,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                }
+                for(auto x:vecTemp){
+                    cout<<x<<" ";
+                }
+                cout<<endl;
+
+            }
+        }
+       
 
         //Check for rank 0
         if(mpiRank==mpiRoot){
             for(auto r=0;r<numRowsLocal;r++){
                 for(auto c=0;c<numCols;c++){
+                    int neighbourSum=0;
                     //Look for edge columns
                     //Top left
                     if(r>=1&&c>=1){
-                        neighbourSum+=currBoardState[r-1][c-1];
+                        neighbourSum+=localCurrGrid[r-1][c-1];
                     }
                     //Top middle
                     if(r>=1){
-                        neighbourSum+=currBoardState[r-1][c];
+                        neighbourSum+=localCurrGrid[r-1][c];
                     }
                     //Top right
                     if(r>=1&&c<=numCols-2){
-                        neighbourSum+=currBoardState[r-1][c+1];
+                        neighbourSum+=localCurrGrid[r-1][c+1];
                     }
                     //Middle left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r][c-1];
+                        neighbourSum+=localCurrGrid[r][c-1];
                     }
                     //Middle right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r][c+1];
+                        neighbourSum+=localCurrGrid[r][c+1];
                     }
                     //Bottom left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r+1][c-1];
+                        neighbourSum+=localCurrGrid[r+1][c-1];
                     }
                     //Bottom middle
-                        neighbourSum+=currBoardState[r+1][c];               
+                        neighbourSum+=localCurrGrid[r+1][c];               
                     //Bottom right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r+1][c+1];
+                        neighbourSum+=localCurrGrid[r+1][c+1];
+                    }
+
+                    //Update the localNextGrid
+                    if(localCurrGrid[r][c]==1){
+                        if(neighbourSum<2||neighbourSum>3){
+                            localNextGrid[r][c]=0;
+                        }else{
+                            localNextGrid[r][c]=localCurrGrid[r][c];
+                        }
+                    }else if(neighbourSum==3){
+                        localNextGrid[r][c]=1;
                     }
                 }
             } 
         }else if(mpiRank==mpiSize-1){
             for(auto r=1;r<numRowsLocal;r++){
-                for(auto c=0;c>numCols;c++){
+                for(auto c=0;c<numCols;c++){
+                    int neighbourSum=0;
                     //Look for edge columns
                     //Top left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r-1][c-1];
+                        neighbourSum+=localCurrGrid[r-1][c-1];
                     }
                     //Top middle
-                        neighbourSum+=currBoardState[r-1][c];
+                        neighbourSum+=localCurrGrid[r-1][c];
                     //Top right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r-1][c+1];
+                        neighbourSum+=localCurrGrid[r-1][c+1];
                     }
                     //Middle left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r][c-1];
+                        neighbourSum+=localCurrGrid[r][c-1];
                     }
                     //Middle right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r][c+1];
+                        neighbourSum+=localCurrGrid[r][c+1];
                     }
                     //Bottom left
-                    if(r<numRowLocal-1&&c>=1){
-                        neighbourSum+=currBoardState[r+1][c-1];
+                    if(r<numRowsLocal-1&&c>=1){
+                        neighbourSum+=localCurrGrid[r+1][c-1];
                     }
                     //Bottom middle
-                    if(r<numRowLocal-1){
-                        neighbourSum+=currBoardState[r+1][c];               
+                    if(r<numRowsLocal-1){
+                        neighbourSum+=localCurrGrid[r+1][c];               
                     }
                     //Bottom right
-                    if(r<numRowLocal-1&&c<=numCols-2){
-                        neighbourSum+=currBoardState[r+1][c+1];
+                    if(r<numRowsLocal-1&&c<=numCols-2){
+                        neighbourSum+=localCurrGrid[r+1][c+1];
+                    }
+
+                    //Update the localNextGrid
+                    if(localCurrGrid[r][c]==1){
+                        if(neighbourSum<2||neighbourSum>3){
+                            localNextGrid[r][c]=0;
+                        }else{
+                            localNextGrid[r][c]=localCurrGrid[r][c];
+                        }
+                    }else if(neighbourSum==3){
+                        localNextGrid[r][c]=1;
                     }
                 }
             }
         }else{
             //else start at the secoond row
             for(auto r=1;r<numRowsLocal;r++){
-                for(auto c=0;c>numCols;c++){
+                for(auto c=0;c<numCols;c++){
+                    int neighbourSum=0;
                     //Look for edge columns
                     //Top left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r-1][c-1];
+                        neighbourSum+=localCurrGrid[r-1][c-1];
                     }
                     //Top middle
-                        neighbourSum+=currBoardState[r-1][c];
+                        neighbourSum+=localCurrGrid[r-1][c];
                     //Top right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r-1][c+1];
+                        neighbourSum+=localCurrGrid[r-1][c+1];
                     }
                     //Middle left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r][c-1];
+                        neighbourSum+=localCurrGrid[r][c-1];
                     }
                     //Middle right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r][c+1];
+                        neighbourSum+=localCurrGrid[r][c+1];
                     }
                     //Bottom left
                     if(c>=1){
-                        neighbourSum+=currBoardState[r+1][c-1];
+                        neighbourSum+=localCurrGrid[r+1][c-1];
                     }
                     //Bottom middle
-                        neighbourSum+=currBoardState[r+1][c];               
+                        neighbourSum+=localCurrGrid[r+1][c];               
                     //Bottom right
                     if(c<=numCols-2){
-                        neighbourSum+=currBoardState[r+1][c+1];
+                        neighbourSum+=localCurrGrid[r+1][c+1];
+                    }
+
+                    //Update the localNextGrid
+                    if(localCurrGrid[r][c]==1){
+                        if(neighbourSum<2||neighbourSum>3){
+                            localNextGrid[r][c]=0;
+                        }else{
+                            localNextGrid[r][c]=localCurrGrid[r][c];
+                        }
+                    }else if(neighbourSum==3){
+                        localNextGrid[r][c]=1;
                     }
                 }
             }
         }
-        //Update the localNextGrid
-        //Broadcast the results
         
     }
 
 
-    MPI::Finalize();
+    MPI_Finalize();
     return 0;
 }
