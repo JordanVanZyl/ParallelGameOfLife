@@ -67,7 +67,7 @@ int main(int argc,char* argv[]){
         belowNeighbour=mpiRank+1;
     }else if(mpiRank==mpiSize-1){
         //No below neighbour
-        aboveNeighbour=mpiRank-11;
+        aboveNeighbour=mpiRank-1;
         belowNeighbour=-1;
     }else{
         aboveNeighbour=mpiRank-1;
@@ -76,35 +76,39 @@ int main(int argc,char* argv[]){
 
     //Generations loop
     for(auto gen=0;gen<numGenerations;gen++){
-        //Check for aboveNeighbour==-1
-        if(aboveNeighbour!=-1){
+        //Check for rank 0
+        if(mpiRank!=mpiRoot){
             //Send the row to the above process
             MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD); 
         }
         
-
-        //Check for the belowNeighbour==-1
-        if(belowNeighbour!=-1){
+        //Check for last rank
+        if(mpiRank!=mpiSize-1){
             //Send the row to below process
             MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
         }
         
-        //Check for the belowNeighbour==-1
-        if(belowNeighbour!=-1){
-            //Receive in reverse order of sending
-            MPI_Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+        //Check for last rank
+        if(mpiRank!=mpiSize-1)
+        {
+            //Receive in from below process
+            if(mpiRank!=mpiRoot){
+                MPI_Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            }else{
+                MPI_Recv(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            }
         }
 
-        //Check for aboveNeighbour==-1
-        if(aboveNeighbour!=-1){
-            //Receive in reverse order of sending
+        //Check for rank 0
+        if(mpiRank!=mpiRoot){
+            //Receive from above process
             MPI_Recv(&localCurrGrid[0][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
         }
 
         //Display the grid
         if(mpiRank!=mpiRoot){
 
-           for(int row=1;row<numRowsLocal;row++){
+            for(int row=1;row<=numRowsLocal;row++){
                 MPI_Send(&localCurrGrid[row][0],numCols,MPI_INT,mpiRoot,0,MPI_COMM_WORLD);
             }
         }else{
@@ -119,11 +123,10 @@ int main(int argc,char* argv[]){
             //Print received grids
             for(int otherRanks=1;otherRanks<mpiSize;otherRanks++){
                 auto numReceived=numRows/mpiSize;//Check this
-
+                // cout<<"Num received: "<<numReceived<<" from rank "<<otherRanks<<endl;
                 if(otherRanks==mpiSize-1){
                     numReceived+=numRows%mpiSize;
                 }
-
                 //Vector to save the input
                 vector<int>vecTemp(numCols,0);
                 //Perform a loop for the receives
