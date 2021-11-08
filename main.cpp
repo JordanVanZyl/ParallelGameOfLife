@@ -8,9 +8,9 @@
 using namespace std;
 
 int main(){
-    int rows=6;
-    int cols=6;
-    int generations=5;
+    int rows=4;
+    int cols=4;
+    int generations=3;
     int state;
     int currNeighbourCount;
     string line;
