@@ -86,37 +86,39 @@ int main(int argc,char* argv[]){
 
     //Generations loop
     for(auto gen=0;gen<numGenerations;gen++){
-        //Check not rank 0
-        if(mpiRank!=mpiRoot){
-            //Send the row to the above process
-            MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD); 
-        }
-        
-        //Check not last rank
-        if(mpiRank==mpiRoot){
-            //Send the row to below process
-            MPI_Send(&localCurrGrid[numRowsLocal-1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
-        }else if(mpiRank!=mpiSize-1){
-            //Send the row to below process
-            MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
-        }
-        
-        //Check for last rank
-        if(mpiRank!=mpiSize-1)
-        {
-            //Receive in from below process
+        if(mpiSize!=1){
+            //Check not rank 0
             if(mpiRank!=mpiRoot){
-                MPI_Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-            }else{
-                MPI_Recv(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                //Send the row to the above process
+                MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD); 
             }
-        }
+            
+            //Check not last rank
+            if(mpiRank==mpiRoot){
+                //Send the row to below process
+                MPI_Send(&localCurrGrid[numRowsLocal-1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
+            }else if(mpiRank!=mpiSize-1){
+                //Send the row to below process
+                MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
+            }
+            
+            //Check for last rank
+            if(mpiRank!=mpiSize-1)
+            {
+                //Receive in from below process
+                if(mpiRank!=mpiRoot){
+                    MPI_Recv(&localCurrGrid[numRowsLocal+1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                }else{
+                    MPI_Recv(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+                }
+            }
 
 
-        //Check for rank 0
-        if(mpiRank!=mpiRoot){
-            //Receive from above process
-            MPI_Recv(&localCurrGrid[0][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            //Check for rank 0
+            if(mpiRank!=mpiRoot){
+                //Receive from above process
+                MPI_Recv(&localCurrGrid[0][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+            }
         }
 
         // cout<<"Local current grid for rank: "<<mpiRank<<endl;
