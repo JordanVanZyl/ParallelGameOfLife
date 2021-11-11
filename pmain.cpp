@@ -11,7 +11,7 @@ void genRandomBoard(vector<vector<int>>&grid,int myRank,int mpiSize,int nRows,in
         for(auto r=1;r<=nRows;r++){
             for(auto c=0;c<nCols;c++){
                 grid[r][c]=rand()%2;//FIXME: Make the seed change
-                
+
             }
         }
     }else if(myRank==0){
@@ -37,16 +37,18 @@ int main(int argc,char* argv[]){
             cout<<"4 arguments required"<<endl;
             exit(1);
         }
-    }
-    numRows = atoi(argv[1]);
-    numCols = atoi(argv[2]);
-    numGenerations = atoi(argv[3]);
 
-    //Broad cast the infomation entered 
+        numRows = atoi(argv[1]);
+        numCols = atoi(argv[2]);
+        numGenerations = atoi(argv[3]);
+    }
+
+
+    //Broad cast the infomation entered
     MPI_Bcast(&numRows,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
     MPI_Bcast(&numCols,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
     MPI_Bcast(&numGenerations,1,MPI_INT,mpiRoot,MPI_COMM_WORLD);
-    
+
     //Calculate the number of rows each node will get
     int numRowsLocal=numRows/mpiSize;
     //For the left over rows, add them to the node with the last rank
@@ -61,11 +63,11 @@ int main(int argc,char* argv[]){
     }else{
         numRowsWithGhost=numRowsLocal+2;
     }
-    
+
     //Locally defined subgrid
     vector<vector<int>>localCurrGrid(numRowsWithGhost,vector<int>(numCols,0));
     vector<vector<int>>localNextGrid(numRowsWithGhost,vector<int>(numCols,0));
-    
+
     genRandomBoard(localCurrGrid,mpiRank,mpiSize,numRowsLocal,numCols);
 
     int aboveNeighbour;
@@ -90,18 +92,18 @@ int main(int argc,char* argv[]){
             //Check not rank 0
             if(mpiRank!=mpiRoot){
                 //Send the row to the above process
-                MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD); 
+                MPI_Send(&localCurrGrid[1][0],numCols,MPI_INT,aboveNeighbour,0,MPI_COMM_WORLD);
             }
-            
+
             //Check not last rank
             if(mpiRank==mpiRoot){
                 //Send the row to below process
-                MPI_Send(&localCurrGrid[numRowsLocal-1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
+                MPI_Send(&localCurrGrid[numRowsLocal-1][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD);
             }else if(mpiRank!=mpiSize-1){
                 //Send the row to below process
-                MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD); 
+                MPI_Send(&localCurrGrid[numRowsLocal][0],numCols,MPI_INT,belowNeighbour,0,MPI_COMM_WORLD);
             }
-            
+
             //Check for last rank
             if(mpiRank!=mpiSize-1)
             {
@@ -163,7 +165,7 @@ int main(int argc,char* argv[]){
                 }
             }
         }
-       
+
 
         //Check for rank 0
         if(mpiRank==mpiRoot){
@@ -196,12 +198,12 @@ int main(int argc,char* argv[]){
                         neighbourSum+=localCurrGrid[r+1][c-1];
                     }
                     //Bottom middle
-                    neighbourSum+=localCurrGrid[r+1][c];               
+                    neighbourSum+=localCurrGrid[r+1][c];
                     //Bottom right
                     if(c<=numCols-2){
                         neighbourSum+=localCurrGrid[r+1][c+1];
                     }
-                    
+
 
                     //Update the localNextGrid
                     if(localCurrGrid[r][c]==1){
@@ -212,10 +214,10 @@ int main(int argc,char* argv[]){
                         }
                     }else if(neighbourSum==3){
                         localNextGrid[r][c]=1;
-                        
+
                     }
                 }
-            } 
+            }
         }else if(mpiRank==mpiSize-1){
             for(auto r=1;r<=numRowsLocal;r++){
                 for(auto c=0;c<numCols;c++){
@@ -245,7 +247,7 @@ int main(int argc,char* argv[]){
                     }
                     //Bottom middle
                     if(r<numRowsLocal){
-                        neighbourSum+=localCurrGrid[r+1][c];               
+                        neighbourSum+=localCurrGrid[r+1][c];
                     }
                     //Bottom right
                     if(r<numRowsLocal&&c<=numCols-2){
@@ -293,7 +295,7 @@ int main(int argc,char* argv[]){
                         neighbourSum+=localCurrGrid[r+1][c-1];
                     }
                     //Bottom middle
-                        neighbourSum+=localCurrGrid[r+1][c];               
+                        neighbourSum+=localCurrGrid[r+1][c];
                     //Bottom right
                     if(c<=numCols-2){
                         neighbourSum+=localCurrGrid[r+1][c+1];
@@ -319,7 +321,7 @@ int main(int argc,char* argv[]){
                 for(auto c=0;c<numCols;c++){
                     localCurrGrid[r][c]=localNextGrid[r][c];
                 }
-               
+
             }
         }else if(mpiRank==0){
             for(auto r=0;r<numRowsLocal;r++){
