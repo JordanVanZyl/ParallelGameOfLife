@@ -2,7 +2,6 @@
 #include<vector>
 #include<chrono>
 #include<mpi.h>
-//TODO: Make the times average over a few iterations
 
 using namespace std;
 
@@ -93,7 +92,7 @@ vector<vector<int>> serialConway(int rows, int cols, int generations, vector<vec
     return currBoardState;
 }
 
-void verifiy(vector<vector<int>>vec1,vector<vector<int>>vec2,int nRows, int nCols){
+void verify(vector<vector<int>>vec1,vector<vector<int>>vec2,int nRows, int nCols){
     bool correct=true;
     for(int r=0;r<nRows;r++){
         for(int c=0;c<nCols;c++){
@@ -467,7 +466,7 @@ int main(int argc,char* argv[]){
         cout<<"The parallel implmentation took "<<parallelEndtime-parallelStarttime<<" seconds"<<endl;
         cout<<"The speedup was: "<<(serialEndtime-serialStartTime)/(parallelEndtime-parallelStarttime)<<endl;
 
-        verifiy(outputGrid,finalGrid,numRows,numCols);
+        verify(outputGrid,finalGrid,numRows,numCols);
 
     }
 
