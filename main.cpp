@@ -1,52 +1,16 @@
 #include<iostream>
 #include<vector>
 #include<string>
-#include<stack> 
+#include<stack>
 #include<sstream>
 #include <algorithm>
 
 using namespace std;
 
-int main(){
-    int rows=5;
-    int cols=5;
-    int generations=2;
-    int state;
-    int currNeighbourCount;
-    string line;
-    stringstream str;
-    // stack<Cell*>cellsToCheck;
-    // stack<Cell*>neighbours;
-    vector<vector<int>>currBoardState(rows,vector<int>(cols));
+vector<vector<int>> serialConway(int rows, int cols, int generations, vector<vector<int>>currBS){
+    vector<vector<int>>currBoardState=currBS;
     vector<vector<int>>nextBoardState(rows,vector<int>(cols));
-    vector<string>vecLines;
-
-    //Take in input for the current board state
-    vecLines.resize(rows);
-    // vecMovesToMake.resize(stoi(numInput));
-    for(int k=0;k<rows;k++){
-        getline(cin,line);
-        vecLines[k]=line;
-        
-    }
-
-    for(int r=0;r<rows;r++){
-        for(int c=0;c<cols;c++){
-            str<<vecLines[r][c];
-            str>>state;
-            currBoardState[r][c]=state;
-            str.clear();
-            
-        }
-    }
-
-    //print the board
-    // for(int r=0;r<rows;r++){
-    //     for(int c=0;c<cols;c++){
-    //         cout<<currBoardState[r][c];
-    //     }
-    //     cout<<endl;
-    // }
+    int currNeighbourCount;
 
     cout<<endl;
     for(int gen=0;gen<generations;gen++){
@@ -105,18 +69,53 @@ int main(){
                 }
             }
         }
-        
-        cout<<endl;
+
+        currBoardState=nextBoardState;
+    }
+
+    return currBoardState;
+}
+int main(){
+    int rows=4;
+    int cols=4;
+    int generations=2;
+    int state;
+
+    string line;
+    stringstream str;
+
+    vector<vector<int>>currBoardState(rows,vector<int>(cols));
+    vector<string>vecLines;
+
+    //Take in input for the current board state
+    vecLines.resize(rows);
+    // vecMovesToMake.resize(stoi(numInput));
+    for(int k=0;k<rows;k++){
+        getline(cin,line);
+        vecLines[k]=line;
+
+    }
+
+    for(int r=0;r<rows;r++){
+        for(int c=0;c<cols;c++){
+            str<<vecLines[r][c];
+            str>>state;
+            currBoardState[r][c]=state;
+            str.clear();
+
+        }
+    }
+
+    currBoardState=serialConway(rows,cols,generations,currBoardState);
+
+         cout<<endl;
         //Display the next board state
         for(int r=0;r<rows;r++){
             for(int c=0;c<cols;c++){
-                cout<<nextBoardState[r][c];
+                cout<<currBoardState[r][c];
             }
             cout<<endl;
         }
 
-        currBoardState=nextBoardState;
-    }
-    //Continue this loop for a few generations
     return 0;
 }
