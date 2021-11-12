@@ -120,9 +120,7 @@ int main(int argc,char* argv[]){
 
     auto mpiRoot=0;
     double parallelStarttime,parallelEndtime;
-
-
-
+    double serialStartTime, serialEndtime;
 
     int numRows,numCols,numGenerations;
     if(mpiRank==mpiRoot){
@@ -157,7 +155,6 @@ int main(int argc,char* argv[]){
         numRowsWithGhost=numRowsLocal+2;
     }
 
-    //Locally defined subgrid
     vector<vector<int>>finalGrid(numRows,vector<int>(numCols,0));
     vector<vector<int>>globalGrid(numRows,vector<int>(numCols,0));
     vector<vector<int>>localCurrGrid(numRowsWithGhost,vector<int>(numCols,0));
@@ -223,7 +220,7 @@ int main(int argc,char* argv[]){
         }
 
         //Display the grid
-        if(mpiRank!=mpiRoot){//TODO: accumulate the grid in a vector, then run the serial implementation
+        if(mpiRank!=mpiRoot){
 
             for(int row=1;row<=numRowsLocal;row++){
                 MPI_Send(&localCurrGrid[row][0],numCols,MPI_INT,mpiRoot,0,MPI_COMM_WORLD);
@@ -450,11 +447,10 @@ int main(int argc,char* argv[]){
         //     cout<<endl;
         // }
         vector<vector<int>>outputGrid;
-
-        double serialStartTime, serialEndtime;
         serialStartTime = MPI_Wtime();
         outputGrid=serialConway(numRows, numCols, numGenerations, globalGrid);
         serialEndtime   = MPI_Wtime();
+
 
         // cout<<endl;
         // cout<<"THE FINAL GRID USED FOR SERIAL IS:"<<endl;
@@ -472,10 +468,8 @@ int main(int argc,char* argv[]){
         cout<<"The speedup was: "<<(serialEndtime-serialStartTime)/(parallelEndtime-parallelStarttime)<<endl;
 
         verifiy(outputGrid,finalGrid,numRows,numCols);
+
     }
-
-
-
 
     MPI_Finalize();
     return 0;
