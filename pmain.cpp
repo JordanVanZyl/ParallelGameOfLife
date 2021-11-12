@@ -1,7 +1,8 @@
 #include<iostream>
 #include<vector>
+#include<chrono>
 #include<mpi.h>
-
+//TODO: Make the times average over a few iterations
 
 using namespace std;
 
@@ -10,7 +11,7 @@ void genRandomBoard(vector<vector<int>>&grid,int myRank,int mpiSize,int nRows,in
     if(myRank!=0){
         for(auto r=1;r<=nRows;r++){
             for(auto c=0;c<nCols;c++){
-                grid[r][c]=rand()%2;//FIXME: Make the seed change
+                grid[r][c]=rand()%2;
 
             }
         }
@@ -23,6 +24,94 @@ void genRandomBoard(vector<vector<int>>&grid,int myRank,int mpiSize,int nRows,in
     }
 }
 
+vector<vector<int>> serialConway(int rows, int cols, int generations, vector<vector<int>>currBS){
+
+    vector<vector<int>>currBoardState=currBS;
+    vector<vector<int>>nextBoardState(rows,vector<int>(cols));
+    int currNeighbourCount;
+
+    for(int gen=0;gen<generations;gen++){
+        for (auto &i : nextBoardState){
+            fill(i.begin(), i.end(), 0);
+        }
+
+        for(int row=0;row<rows;row++){
+            for(int col=0;col<cols;col++){
+                //Inistialize neighbour count
+                currNeighbourCount=0;
+                //Top left
+                if(row>=1&&col>=1){
+                    currNeighbourCount+=currBoardState[row-1][col-1];
+                }
+                //Top middle
+                if(row>=1){
+                    currNeighbourCount+=currBoardState[row-1][col];
+                }
+                //Top right
+                if(row>=1&&col<=cols-2){
+                    currNeighbourCount+=currBoardState[row-1][col+1];
+                }
+                //Middle left
+                if(col>=1){
+                    currNeighbourCount+=currBoardState[row][col-1];
+                }
+                //Middle right
+                if(col<=cols-2){
+                    currNeighbourCount+=currBoardState[row][col+1];
+                }
+                //Bottom left
+                if(row<=rows-2&&col>=1){
+                    currNeighbourCount+=currBoardState[row+1][col-1];
+                }
+                //Bottom middle
+                if(row<=rows-2){
+                    currNeighbourCount+=currBoardState[row+1][col];
+                }
+                //Bottom right
+                if(row<=rows-2&&col<=cols-2){
+                    currNeighbourCount+=currBoardState[row+1][col+1];
+                }
+
+                if(currBoardState[row][col]==1){
+                    if(currNeighbourCount<2||currNeighbourCount>3){
+                        nextBoardState[row][col]=0;
+                    }else{
+                        nextBoardState[row][col]=currBoardState[row][col];
+                    }
+                }else if(currNeighbourCount==3){
+                    nextBoardState[row][col]=1;
+                }
+                else{
+                    nextBoardState[row][col]=currBoardState[row][col];
+                }
+            }
+        }
+
+        currBoardState=nextBoardState;
+    }
+
+    return currBoardState;
+}
+
+void verifiy(vector<vector<int>>vec1,vector<vector<int>>vec2,int nRows, int nCols){
+    bool correct=true;
+    for(int r=0;r<nRows;r++){
+        for(int c=0;c<nCols;c++){
+            if(vec1[r][c]!=vec2[r][c]){
+                correct=false;
+                r=nRows;
+                break;
+            }
+        }
+    }
+    cout<<endl;
+    if(correct){
+        cout<<"SERIAL AND PARALLEL IMPLEMENTATION OUTPUTS ARE THE SAME"<<endl;
+    }else{
+        cout<<"SERIAL AND PARALLEL IMPLEMENTATION OUTPUTS ARE NOT THE SAME"<<endl;
+    }
+}
+
 int main(int argc,char* argv[]){
     MPI_Init(&argc,&argv);
     int mpiSize,mpiRank;
@@ -30,6 +119,10 @@ int main(int argc,char* argv[]){
     MPI_Comm_rank(MPI_COMM_WORLD,&mpiRank);
 
     auto mpiRoot=0;
+    double parallelStarttime,parallelEndtime;
+
+
+
 
     int numRows,numCols,numGenerations;
     if(mpiRank==mpiRoot){
@@ -65,6 +158,8 @@ int main(int argc,char* argv[]){
     }
 
     //Locally defined subgrid
+    vector<vector<int>>finalGrid(numRows,vector<int>(numCols,0));
+    vector<vector<int>>globalGrid(numRows,vector<int>(numCols,0));
     vector<vector<int>>localCurrGrid(numRowsWithGhost,vector<int>(numCols,0));
     vector<vector<int>>localNextGrid(numRowsWithGhost,vector<int>(numCols,0));
 
@@ -86,8 +181,12 @@ int main(int argc,char* argv[]){
         belowNeighbour=mpiRank+1;
     }
 
+    if(mpiRank==mpiRoot){
+        //Start the timer
+        parallelStarttime=MPI_Wtime();
+    }
     //Generations loop
-    for(auto gen=0;gen<numGenerations;gen++){
+    for(auto gen=0;gen<=numGenerations;gen++){
         if(mpiSize!=1){
             //Check not rank 0
             if(mpiRank!=mpiRoot){
@@ -123,33 +222,34 @@ int main(int argc,char* argv[]){
             }
         }
 
-        // cout<<"Local current grid for rank: "<<mpiRank<<endl;
-        // for(int r=0;r<numRowsWithGhost;r++){
-        //     for(int c=0;c<numCols;c++){
-        //         cout<<localCurrGrid[r][c]<<" ";
-        //     }
-        //     cout<<endl;
-        // }
-
         //Display the grid
-        if(mpiRank!=mpiRoot){//FIXME: Uncomment to print
+        if(mpiRank!=mpiRoot){//TODO: accumulate the grid in a vector, then run the serial implementation
 
             for(int row=1;row<=numRowsLocal;row++){
                 MPI_Send(&localCurrGrid[row][0],numCols,MPI_INT,mpiRoot,0,MPI_COMM_WORLD);
             }
         }else{
+            int rowIndex=0;
             //Print local grid
-            cout<<"Generation: "<<gen<<endl;
+            // cout<<"Generation: "<<gen<<endl;
             for(int row=0;row<numRowsLocal;row++){
                 for(int col=0;col<numCols;col++){
-                    cout<<localCurrGrid[row][col]<<" ";
+                    //Check for first generation to send to serial function
+                    if(gen==0){
+                        globalGrid[row][col]=localCurrGrid[row][col];
+                    }
+                    else if(gen==numGenerations){
+                        finalGrid[row][col]=localCurrGrid[row][col];
+                    }
+                    // cout<<localCurrGrid[row][col]<<" ";
                 }
-                cout<<endl;
+                rowIndex+=1;
+                // cout<<endl;
             }
             //Print received grids
             for(int otherRanks=1;otherRanks<mpiSize;otherRanks++){
                 auto numReceived=numRows/mpiSize;//Check this
-                // cout<<"Num received: "<<numReceived<<" from rank "<<otherRanks<<endl;
+
                 if(otherRanks==mpiSize-1){
                     numReceived+=numRows%mpiSize;
                 }
@@ -158,10 +258,16 @@ int main(int argc,char* argv[]){
                 //Perform a loop for the receives
                 for(int i=0;i<numReceived;i++){
                     MPI_Recv(&vecTemp[0],numCols,MPI_INT,otherRanks,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-                    for(auto x:vecTemp){
-                        cout<<x<<" ";
+                    for(auto outIndex=0;outIndex<vecTemp.size();outIndex++){
+                        if(gen==0){
+                            globalGrid[rowIndex][outIndex]=vecTemp[outIndex];
+                        }else if(gen==numGenerations){
+                            finalGrid[rowIndex][outIndex]=vecTemp[outIndex];
+                        }
+                        // cout<<vecTemp[outIndex]<<" ";
                     }
-                    cout<<endl;
+                    rowIndex+=1;
+                    // cout<<endl;
                 }
             }
         }
@@ -253,7 +359,7 @@ int main(int argc,char* argv[]){
                     if(r<numRowsLocal&&c<=numCols-2){
                         neighbourSum+=localCurrGrid[r+1][c+1];
                     }
-                    // cout<<"Neighbour sum is: "<<neighbourSum<<" for row: "<<r<<" col: "<<c<<endl;
+
                     //Update the localNextGrid
                     if(localCurrGrid[r][c]==1){
                         if(neighbourSum<2||neighbourSum>3){
@@ -331,6 +437,44 @@ int main(int argc,char* argv[]){
             }
         }
     }
+
+    if(mpiRank==mpiRoot){
+        parallelEndtime=MPI_Wtime();
+        // cout<<"THE FIRST GRID USED FOR SERIAL IS:"<<endl;
+        // for(int row=0;row<numRows;row++){
+        //     for(int col=0;col<numCols;col++){
+        //         //Check for first generation to send to serial function
+
+        //             cout<<globalGrid[row][col]<<" ";
+        //     }
+        //     cout<<endl;
+        // }
+        vector<vector<int>>outputGrid;
+
+        double serialStartTime, serialEndtime;
+        serialStartTime = MPI_Wtime();
+        outputGrid=serialConway(numRows, numCols, numGenerations, globalGrid);
+        serialEndtime   = MPI_Wtime();
+
+        // cout<<endl;
+        // cout<<"THE FINAL GRID USED FOR SERIAL IS:"<<endl;
+        // for(int row=0;row<numRows;row++){
+        //     for(int col=0;col<numCols;col++){
+        //         //Check for first generation to send to serial function
+
+        //             cout<<outputGrid[row][col]<<" ";
+        //     }
+        //     cout<<endl;
+        // }
+
+        cout<<"The serial implmentation took "<<serialEndtime-serialStartTime<<" seconds"<<endl;
+        cout<<"The parallel implmentation took "<<parallelEndtime-parallelStarttime<<" seconds"<<endl;
+        cout<<"The speedup was: "<<(serialEndtime-serialStartTime)/(parallelEndtime-parallelStarttime)<<endl;
+
+        verifiy(outputGrid,finalGrid,numRows,numCols);
+    }
+
+
 
 
     MPI_Finalize();
